@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Jogo da nave</title>
+    <script src="fundo.js"></script>
+    <script src="animacao.js"></script>
+    <script src="colisor.js"></script>
+    <script src="nave.js"></script>
+    <script src="ovni.js"></script>
+    <script src="tiro.js"></script>
+    <script src="teclado.js"></script>
+    <script src="spritesheet.js"></script>
+    <script src="explosao.js"></script>
+</head>
+<body>
+    <canvas id="canvas_animacao" width="500" height="500"></canvas>
+
+    <script>
+        var canvas = document.getElementById('canvas_animacao');
+        var context = canvas.getContext('2d');
+
+        // variaveis principais
+        var imagens, animacao, teclado, colisor, nave, criadorInimigos, musicaAcao;
+        var totalImagens = 0 , carregadas = 0;
+
+        carregaImagens();
+        carregaMusicas();
+        function carregaImagens() {
+            imagens= {
+                espaco: 'fundo-espaco.png',
+                estrelas: 'fundo-estrelas.png',
+                nuvens: 'fundo-nuvens.png',
+                nave: 'nave-spritesheet.png',
+                ovni: 'ovni.png',
+                explosao: 'explosao.png'
+
+            }
+
+            for (var i in imagens){
+                var img = new Image();
+                img.src = 'img/' + imagens[i];
+                img.onload = carregando;
+                totalImagens++;
+
+                imagens[i] = img;
+            }
+        }
+
+        function carregaMusicas() {
+            musicaAcao = new Audio();
+            musicaAcao.src = 'snd/musica-acao.mp3';
+            musicaAcao.load();
+            musicaAcao.volume = 0.1;
+            musicaAcao.loop = true;
+            musicaAcao.muted = true
+            musicaAcao.play();
+        }
+        function carregando() {
+            carregadas++;
+            if (carregadas == totalImagens)iniciarObjetos();
+        }
+
+        function iniciarObjetos(){
+            //obejtos principais
+
+            animacao = new Animacao(context);
+            teclado = new Teclado(document);
+            colisor = new Colisor();
+            estrelas = new Fundo(context,imagens.estrelas);
+            nuvens = new Fundo(context, imagens.nuvens);
+            espaco = new Fundo (context,imagens.espaco);
+            nave = new Nave(context, teclado, imagens.nave, imagens.explosao);
+
+            //ligacao entre objetos
+            animacao.novoSprite(espaco);
+            animacao.novoSprite(estrelas);
+            animacao.novoSprite(nuvens);
+            animacao.novoSprite(nave);
+
+            colisor.novoSprite(nave);
+            animacao.novoProcessamento(colisor)
+
+            configuracoesInicias();
+        }
+
+        function configuracoesInicias() {
+            //fundo
+            espaco.velocidade = 60;
+            estrelas.velocidade = 150;
+            nuvens.velocidade = 500;
+            //nave
+            nave.x = canvas.width / 2 - 18;
+            nave.y = canvas.height - 48;
+            nave.velocidade = 200;
+            //tiro
+            ativarTiro(true);
+            //pausa
+            teclado.disparou(ENTER,pausarJogo);
+            animacao.ligar();
+
+            criancaoInimigos();
+        }
+
+        function criancaoInimigos(){
+
+
+
+            criadorInimigos= {
+                ultimoOvni: new Date().getTime(),
+
+                processar: function () {
+                    var agora = new Date().getTime();
+                    var decorrido = agora - this.ultimoOvni;
+
+                    if (decorrido > 1000){
+                        novoOvni();
+                        this.ultimoOvni = agora;
+                    }
+                }
+            };
+
+            function novoOvni() {
+                var imgOvni = imagens.ovni;
+                var ovni = new Ovni(context, imgOvni,imagens.explosao);
+
+                //minimo: 5 maximo = 20
+                ovni.velocidade = Math.floor(500 + Math.random() * 1000 - 500 +1) * this.animacao.decorrido/1000 ;
+                //minimo = 0 , maximo = largura do canvas - largura do ovni
+                ovni.x= Math.floor(Math.random() * (canvas.width - imgOvni.width +1));
+                //desconta a altura
+                ovni.y= -imgOvni.height;
+
+                animacao.novoSprite(ovni);
+                colisor.novoSprite(ovni);
+            }
+
+            animacao.novoProcessamento(criadorInimigos);
+        }
+
+        function pausarJogo() {
+            if (animacao.ligado){
+                animacao.desligar();
+                ativarTiro(false);
+
+                context.save();
+                context.fillStyle = 'white';
+                context.strokeStyle = 'black';
+                context.font = '200 px sans-serif';
+                context.fillText("Pausado", 160, 200);
+                context.strokeText("Pausado", 160 , 200);
+                context.restore();
+            }else
+               // criadorInimigos.ultimoOvni = new Date().getTime();
+                animacao.ligar();
+                ativarTiro(true);
+        }
+
+        function ativarTiro(ativar) {
+            if (ativar){
+                teclado.disparou(ESPACO, function () {
+                    nave.atirar()
+                });
+            }
+            else
+                teclado.disparou(ESPACO, null);
+        }
+    </script>
+</body>
+</html>
